@@ -10,7 +10,7 @@ fprintf('Original Sampling Frequency = %d Hz\n', Fs);
 % Create a time vector for the original signal
 t = (0:length(signal)-1) / Fs;
 
-figure;
+figure(1);
 plot(t, signal);
 xlabel('Time (s)');
 ylabel('Amplitude');
@@ -43,7 +43,7 @@ fprintf('Number of samples after downsampling = %d\n', numSamplesDown);
 % Create a time vector for the downsampled signal
 t_down = (0:numSamplesDown-1) / newFs;
 
-figure;
+figure(2);
 plot(t_down, downsampled_signal);
 xlabel('Time (s)');
 ylabel('Amplitude');
@@ -58,7 +58,7 @@ t_end   = 1.0;
 idx_orig = find(t >= t_start & t <= t_end);
 idx_down = find(t_down >= t_start & t_down <= t_end);
 
-figure(1);
+figure(3);
 subplot(2,1,1);
 plot(t(idx_orig), signal(idx_orig));
 xlabel('Time (s)');
@@ -142,7 +142,7 @@ fprintf('Estimated time delay between M1 and M2: %f seconds\n', time_delay);
 % Given r = 10 cm (distance between the microphones)
 r = 0.10;  % in meters
 c = 343;    % Speed of sound in air (m/s)
-
+    
 % Compute distance difference using time delay
 d_diff = time_delay * c;
 
@@ -150,3 +150,72 @@ d_diff = time_delay * c;
 theta = asind(d_diff / (2 * r));
 
 fprintf('The robot must turn by θ = %f degrees to correct its heading.\n', theta);
+
+
+%% (1) Load and Plot the Audio Signal
+[data, fs] = audioread('Cafe_with_noise.wav');
+t = (0:length(data)-1) / fs;  % Time vector
+
+figure(4);
+plot(t, data, 'LineWidth', 1.5);
+title('Time Domain Signal of "Cafe\_with\_noise.wav"');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+%% (2) Frequency Domain Analysis via FFT
+N = length(data);
+Y = fft(data);
+f = (0:N-1) * (fs / N);  % Frequency vector
+magY = abs(Y);
+
+half_N = floor(N/2);
+figure(5);
+plot(f(1:half_N), magY(1:half_N), 'LineWidth', 1.5);
+title('Frequency Domain Representation');
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+xlim([0 fs/2]);
+grid on;
+
+%% (3) Design and Apply a FIR Low Pass Filter Using a Windowed Sinc Function
+
+% Desired cutoff frequency (Hz)
+fc = 1600;
+
+% FIR Filter Design Parameters
+M = 50;         % Filter order (number of taps - 1)
+n = 0:M;        % Sample indices for filter coefficients
+
+% Compute the ideal impulse response (sinc function)
+% We need to compute: h_ideal = 2 * fc/fs * sinc(2 * fc/fs * (n - M/2))
+x = 2 * fc / fs * (n - M/2);
+
+% Manually compute sinc: sinc(x) = sin(pi*x)/(pi*x) with handling for x==0
+h_ideal = 2 * fc / fs * ( sin(pi*x) ./ (pi*x) );
+h_ideal(x == 0) = 2 * fc / fs;  % Correct the value at x = 0
+
+% Create a Hamming window
+w = 0.54 - 0.46*cos(2*pi*n/M);
+
+% Apply the window to the ideal impulse response
+h = h_ideal .* w;
+h = h / sum(h);  % Normalize to ensure unity gain at DC
+
+% Apply the filter using filter (note: this introduces a delay of ~M/2 samples)
+filtered_data = filter(h, 1, data);
+
+% (Optional) Use filtfilt for zero-phase filtering if available:
+% filtered_data = filtfilt(h, 1, data);
+
+%% Plot the Filtered Signal (Voice Only)
+figure(6);
+plot(t, fft(filtered_data), 'LineWidth', 1.5);
+title('Filtered Signal (Voice Only)');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+%% (Optional) Write the Filtered Audio to a New File
+audiowrite('Cafe_voice_only.wav', filtered_data, fs);
+
