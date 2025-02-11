@@ -12,41 +12,34 @@ def detectLine(frame):
         lineCenter: A number between [-1, 1] denoting where the center of the line is relative to the frame.
         newFrame: Processed frame with the detected line marked using cv2.rectangle() and center marked using cv2.circle().
     """
-
-    # Convert frame to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    kernel_size = 5
+    blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size),0)
 
-    # Apply a threshold to isolate the white line (adjust threshold as needed)
-    _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
+    edges = cv2.Canny(blur_gray, 150, 50)
+    rho = 2
 
-    # Find contours in the thresholded image
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    theta = np.pi/180
+    threshold = 15
+    min_line_len = 100
+    max_line_gap = 1
+    line_image = np.copy(frame)
+    lines = cv2.HoughLinesP(edges, rho, theta, threshold, np.array([]),
+                    min_line_len, max_line_gap)
+    center = None
+    if lines is not None:
+            
+        for line in lines:
+            for x1,y1,x2,y2 in line:
+                center = (int((x1+x2)/2), int((y2 + y1)/2))
+                # cv2.circle(line_image, center, radius=1, color=(255, 0, 0), thickness=-1)
 
-    # If no contours are found, return the original frame and 0 (center)
-    if len(contours) == 0:
-        return 0, frame  
+                cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
+    if center is not None:
+        return center, line_image
+    else:
+        return (0,0), line_image
 
-    # Find the largest contour (assumed to be the white line)
-    largest_contour = max(contours, key=cv2.contourArea)
-
-    # Get bounding box around the contour
-    x, y, w, h = cv2.boundingRect(largest_contour)
-
-    # Calculate the center of the detected white line
-    lineCenterX = x + w // 2  
-    frameCenterX = frame.shape[1] // 2  
-
-    # Normalize the line position between -1 (left) and 1 (right)
-    normalizedCenter = (lineCenterX - frameCenterX) / (frame.shape[1] // 2)
-
-    # Draw a bounding box around the detected line
-    newFrame = frame.copy()
-    cv2.rectangle(newFrame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-    # Draw a circle at the center of the detected line
-    cv2.circle(newFrame, (lineCenterX, y + h // 2), 5, (0, 0, 255), -1)
-
-    return normalizedCenter, newFrame
 def main():
     cam = cv2.VideoCapture(0)  # Open webcam
 
@@ -57,12 +50,12 @@ def main():
 
         lineCenter, newFrame = detectLine(frame)
 
-        cv2.imshow(newFrame)
+        cv2.imshow("new frame", newFrame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cap.release()
+    cam.release()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
