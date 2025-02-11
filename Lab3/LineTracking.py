@@ -16,13 +16,16 @@ def detectLine(frame):
     kernel_size = 5
     blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size),0)
 
-    edges = cv2.Canny(blur_gray, 150, 50)
-    rho = 2
+    ret, thresh = cv2.threshold(blur_gray, 200, 255, cv2.THRESH_BINARY)
+
+
+    edges = cv2.Canny(thresh, 150, 50)
+    rho = 1
 
     theta = np.pi/180
     threshold = 15
     min_line_len = 100
-    max_line_gap = 1
+    max_line_gap = 10
     line_image = np.copy(frame)
     lines = cv2.HoughLinesP(edges, rho, theta, threshold, np.array([]),
                     min_line_len, max_line_gap)
@@ -35,10 +38,8 @@ def detectLine(frame):
                 # cv2.circle(line_image, center, radius=1, color=(255, 0, 0), thickness=-1)
 
                 cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
-    if center is not None:
-        return center, line_image
-    else:
-        return (0,0), line_image
+    return center, line_image
+
 
 def main():
     cam = cv2.VideoCapture(0)  # Open webcam
