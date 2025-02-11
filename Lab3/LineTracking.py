@@ -14,7 +14,7 @@ def detectLine(frame):
     """
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     kernel_size = 5
-    blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size),0)
+    blur_gray = frame # cv2.GaussianBlur(gray,(kernel_size, kernel_size),0)
 
     ret, thresh = cv2.threshold(blur_gray, 200, 255, cv2.THRESH_BINARY)
 
@@ -22,22 +22,24 @@ def detectLine(frame):
     edges = cv2.Canny(thresh, 150, 50)
     rho = 1
 
-    theta = np.pi/180
-    threshold = 15
+    theta = np.pi * 2/180
+    threshold = 50
     min_line_len = 100
     max_line_gap = 10
     line_image = np.copy(frame)
     lines = cv2.HoughLinesP(edges, rho, theta, threshold, np.array([]),
                     min_line_len, max_line_gap)
     center = None
-    if lines is not None:
-            
+    if lines is not None:   
         for line in lines:
             for x1,y1,x2,y2 in line:
-                center = (int((x1+x2)/2), int((y2 + y1)/2))
-                # cv2.circle(line_image, center, radius=1, color=(255, 0, 0), thickness=-1)
+                if x1 > 480 or x2 > 480 or x1 < 160 or x2 < 160:
+                    pass
+                else:
+                    center = (int((x1+x2)/2), int((y2 + y1)/2))
+                    # cv2.circle(line_image, center, radius=1, color=(255, 0, 0), thickness=-1)
 
-                cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
+                    cv2.line(line_image,(x1,y1),(x2,y2),(255,0,0),5)
     return center, line_image
 
 
@@ -46,6 +48,7 @@ def main():
 
     while cam.isOpened():
         ret, frame = cam.read()
+
         if not ret:
             break
 
